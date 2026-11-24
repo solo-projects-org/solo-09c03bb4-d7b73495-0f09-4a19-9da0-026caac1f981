@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>基金持仓净变动（拆股/换股折算）</title>
+  <style>
+    :root { --border: #d0d7de; --muted: #656d76; --ok: #1a7f37; --err: #cf222e; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+           margin: 0; padding: 24px; color: #1f2328; background: #f6f8fa; }
+    h1 { font-size: 20px; } h2 { font-size: 16px; margin-top: 28px; }
+    .card { background: #fff; border: 1px solid var(--border); border-radius: 8px;
+            padding: 16px; margin-bottom: 16px; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; background: #fff; }
+    th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+    th { background: #f0f3f6; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    form.inline { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 4px; }
+    input[type=date], input[type=file] { font-size: 13px; }
+    button { background: #0969da; color: #fff; border: 0; border-radius: 6px;
+             padding: 7px 14px; font-size: 13px; cursor: pointer; }
+    button:hover { background: #0860c4; }
+    .flash { padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; }
+    .flash.success { background: #dafbe1; color: var(--ok); border: 1px solid #aceebb; }
+    .flash.error { background: #ffebe9; color: var(--err); border: 1px solid #ffabaf; }
+    .muted { color: var(--muted); font-size: 12px; }
+    .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; }
+    .tag.active { background: #dafbe1; color: var(--ok); }
+    .tag.superseded { background: #fff8c5; color: #9a6700; }
+    .tag.failed { background: #ffebe9; color: var(--err); }
+    .detail { font-size: 12px; color: var(--muted); margin: 4px 0 0; }
+    code { background: #eff1f3; padding: 1px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>基金持仓净变动测算 <span class="muted">— 拆股 / 换股折算（Flask + SQLite）</span></h1>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, msg in messages %}
+      <div class="flash {{ category }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  {% block body %}{% endblock %}
+</body>
+</html>

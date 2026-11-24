@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block body %}
+
+<div class="card">
+  <h2 style="margin-top:0">1. 上传持仓 CSV（同一基金前后两期完整持仓）</h2>
+  <div style="display:flex; gap:24px; flex-wrap:wrap">
+    <form class="inline" method="post" enctype="multipart/form-data"
+          action="{{ url_for('main.upload', period='begin') }}">
+      <div>
+        <label>期初日期</label>
+        <input type="date" name="as_of_date" required>
+      </div>
+      <div>
+        <label>期初持仓 CSV（证券代码、股数）</label>
+        <input type="file" name="file" accept=".csv,text/csv" required>
+      </div>
+      <button type="submit">上传/替换期初持仓</button>
+    </form>
+    <form class="inline" method="post" enctype="multipart/form-data"
+          action="{{ url_for('main.upload', period='end') }}">
+      <div>
+        <label>期末日期</label>
+        <input type="date" name="as_of_date" required>
+      </div>
+      <div>
+        <label>期末持仓 CSV（证券代码、股数）</label>
+        <input type="file" name="file" accept=".csv,text/csv" required>
+      </div>
+      <button type="submit">上传/替换期末持仓</button>
+    </form>
+  </div>
+  <p class="muted">同周期再次上传按整表替换，自动触发重算；证券代码按文本处理（保留前导零）。</p>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">2. 上传 / 整表换报公告 CSV</h2>
+  <form class="inline" method="post" enctype="multipart/form-data"
+        action="{{ url_for('main.announcements_replace') }}">
+    <div>
+      <label>公告 CSV（生效日、旧代码、新代码、新旧股数比）</label>
+      <input type="file" name="file" accept=".csv,text/csv" required>
+    </div>
+    <button type="submit">整表换报并重算</button>
+  </form>
+  <p class="muted">
+    换报为原子操作：仅重算可能受改动影响的期初持仓，其余来源沿用原折算行；
+    校验或折算失败时新批次记为 <code>failed</code>，原 <code>active</code> 表继续生效、可查询。
+    折算区间为 <code>(期初日, 期末日]</code>，同日每个旧代码最多一条公告，
+    新换得份额当天不再折算，中间不取整。
+  </p>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">3. 净变动表
+    {% if result %}
+      <span class="muted">— 结果批次 #{{ result.id }}｜{{ result.begin_date }} ~ {{ result.end_date or '期末未上传（窗口上不封顶）' }}
+        ｜公告批次 #{{ result.announcement_batch_id }}（{{ result.ann_filename }}）
+        ｜{{ result.trigger_note }}</span>
+    {% endif %}
+  </h2>
+  {% if not result %}
+    <p class="muted">尚无可展示结果：请先上传期初持仓（及公告）。期末持仓缺失时实报股数按零计。</p>
+  {% else %}
+  <table>
+    <thead>
+      <tr>
+        <th>期末代码</th>
+        <th>折算来源（期初代码 → 期末代码）</th>
+        <th class="num">折算股数</th>
+        <th class="num">实报股数</th>
+        <th class="num">净变动（实报 − 折算）</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.end_code }}</td>
+        <td>
+          {{ row.sources }}
+          {% for d in row.source_details %}
+            <p class="detail">来源 {{ d.origin_code }}：{{ d.path }}</p>
+          {% endfor %}
+        </td>
+        <td class="num">{{ row.adjusted_shares | d }}</td>
+        <td class="num">{{ row.reported_shares | d }}</td>
+        <td class="num">{{ row.net_change | d }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted">任一侧缺项按零计算；折算股数为同期末代码下各来源折算份额之和。</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">4. 历史版本（换报失败仍可查原表）</h2>
+  <h3>结果批次</h3>
+  <table>
+    <thead><tr><th>#</th><th>区间</th><th>公告批次</th><th>触发说明</th><th>生成时间</th><th></th></tr></thead>
+    <tbody>
+    {% for r in results %}
+      <tr>
+        <td>#{{ r.id }}</td>
+        <td>{{ r.begin_date }} ~ {{ r.end_date or '未封顶' }}</td>
+        <td>#{{ r.announcement_batch_id }} <span class="tag {{ r.ann_status }}">{{ r.ann_status }}</span></td>
+        <td>{{ r.trigger_note }}</td>
+        <td>{{ r.created_at }}</td>
+        <td><a href="{{ url_for('main.result_detail', result_id=r.id) }}">查看</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="muted">暂无结果批次</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>公告批次</h3>
+  <table>
+    <thead><tr><th>#</th><th>状态</th><th>文件</th><th>行数</th><th>说明</th><th>时间</th></tr></thead>
+    <tbody>
+    {% for b in batches %}
+      <tr>
+        <td>#{{ b.id }}</td>
+        <td><span class="tag {{ b.status }}">{{ b.status }}</span></td>
+        <td>{{ b.filename }}</td>
+        <td class="num">{{ b.row_count }}</td>
+        <td>{{ b.note }}</td>
+        <td>{{ b.uploaded_at }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>持仓文件</h3>
+  <table>
+    <thead><tr><th>#</th><th>周期</th><th>日期</th><th>文件</th><th>行数</th><th>当前生效</th><th>上传时间</th></tr></thead>
+    <tbody>
+    {% for h in holdings %}
+      <tr>
+        <td>#{{ h.id }}</td>
+        <td>{{ '期初' if h.period == 'begin' else '期末' }}</td>
+        <td>{{ h.as_of_date }}</td>
+        <td>{{ h.filename }}</td>
+        <td class="num">{{ h.row_count }}</td>
+        <td>{{ '是' if h.is_current else '否（历史版本）' }}</td>
+        <td>{{ h.uploaded_at }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="7" class="muted">暂无持仓文件</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

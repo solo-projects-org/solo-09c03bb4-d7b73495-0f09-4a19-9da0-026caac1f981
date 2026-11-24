@@ -1,0 +1,13 @@
+services:
+  web:
+    build: .
+    image: fund-holding-adjuster:latest
+    container_name: fund-holding-adjuster
+    ports:
+      - "8000:8000"
+    volumes:
+      - fund-data:/data
+    restart: unless-stopped
+
+volumes:
+  fund-data:
